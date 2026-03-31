@@ -10,6 +10,10 @@ structlog>=25.0.0
 # ── HTTP client (for future integrations) ────────────────────────────────────
 httpx>=0.28.0
 
+# ── Semantic search ──────────────────────────────────────────────────────────
+sentence-transformers>=3.0.0
+numpy>=1.26.0
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest>=8.0.0
 pytest-asyncio>=0.25.0

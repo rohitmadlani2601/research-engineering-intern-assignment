@@ -55,6 +55,20 @@ export interface PostsQuery {
   q?: string
 }
 
+export interface SearchResultItem extends RedditPost {
+  rank: number
+  similarity: number
+}
+
+export interface SemanticSearchResponse {
+  query: string
+  top_k: number
+  total_results: number
+  results: SearchResultItem[]
+  embedding_model: string
+  message: string | null
+}
+
 export const narrativeLensApi = {
   async getHealth(): Promise<HealthStatus> {
     const { data } = await api.get<HealthStatus>('/health')
@@ -76,6 +90,11 @@ export const narrativeLensApi = {
 
   async getSubreddits(): Promise<string[]> {
     const { data } = await api.get<string[]>('/api/v1/posts/meta/subreddits')
+    return data
+  },
+
+  async semanticSearch(query: string, top_k: number = 1000, threshold: number = 0.20): Promise<SemanticSearchResponse> {
+    const { data } = await api.post<SemanticSearchResponse>('/api/v1/semantic-search', { query, top_k, threshold })
     return data
   },
 }

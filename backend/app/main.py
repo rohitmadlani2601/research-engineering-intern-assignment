@@ -10,12 +10,14 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health_router, posts_router
+from app.api import health_router, posts_router, search_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.models.post import ErrorDetail
 from app.services.dataset import load_posts
+from app.services.embedding_service import EmbeddingService
 from app.services.post_service import PostService
+from app.services.search_service import SearchService
 
 configure_logging()
 logger = structlog.get_logger(__name__)
@@ -26,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     logger.info("startup_begin", app=settings.APP_NAME, env=settings.ENVIRONMENT)
 
+    posts: list = []
     try:
         posts = await asyncio.to_thread(
             load_posts, settings.DATA_PATH, settings.MAX_ROWS_IN_MEMORY
@@ -35,6 +38,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except FileNotFoundError as exc:
         logger.error("dataset_missing", error=str(exc))
         app.state.post_service = None
+
+    # ── Semantic search index ──────────────────────────────────────────────
+    # Run model loading and embedding generation in a thread so we don't
+    # block the event loop during the potentially long startup phase.
+    try:
+        embedding_svc = EmbeddingService()
+        await asyncio.to_thread(embedding_svc.load_model)
+        await asyncio.to_thread(embedding_svc.build_index, posts)
+        app.state.search_service = SearchService(
+            embedding_service=embedding_svc,
+            posts=posts,
+        )
+        logger.info(
+            "semantic_search_ready",
+            model=embedding_svc.model_name,
+            indexed_posts=embedding_svc.num_posts,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("semantic_search_startup_failed", error=str(exc))
+        app.state.search_service = None
 
     yield
 
@@ -66,6 +89,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(posts_router, prefix="/api/v1")
+    app.include_router(search_router, prefix="/api/v1")
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

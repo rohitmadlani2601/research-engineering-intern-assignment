@@ -50,13 +50,37 @@ export default function OverviewPage({ query, subreddit, clusterCount }: Overvie
     setLoading(true)
     setError(null)
     try {
-      const data = await narrativeLensApi.getPosts({
-        page: p,
-        page_size: PAGE_SIZE,
-        q: query || undefined,
-        subreddit: subreddit || undefined,
-      })
-      setResult(data)
+      if (query.trim()) {
+        // Use semantic search for active queries
+        const data = await narrativeLensApi.semanticSearch(query, 10000, 0.20)
+        let items = data.results as RedditPost[]
+        
+        // Frontend filtering for subreddit if selected
+        if (subreddit) {
+          items = items.filter(post => post.subreddit.toLowerCase() === subreddit.toLowerCase())
+        }
+        
+        // Semantic search doesn't do traditional pagination, just top-K
+        // Wrap it back into PaginatedPosts format so UI doesn't break
+        const total = items.length
+        const totalPages = Math.ceil(total / PAGE_SIZE) || 1
+        
+        setResult({
+          total: total,
+          page: p,
+          page_size: PAGE_SIZE,
+          pages: totalPages,
+          items: items.slice((p - 1) * PAGE_SIZE, p * PAGE_SIZE)
+        })
+      } else {
+        // Fallback to normal listing/filtering
+        const data = await narrativeLensApi.getPosts({
+          page: p,
+          page_size: PAGE_SIZE,
+          subreddit: subreddit || undefined,
+        })
+        setResult(data)
+      }
     } catch {
       setError('Failed to load posts. Is the backend running?')
     } finally {
@@ -66,13 +90,21 @@ export default function OverviewPage({ query, subreddit, clusterCount }: Overvie
 
   const fetchAllForChart = useCallback(async () => {
     try {
-      const data = await narrativeLensApi.getPosts({
-        page: 1,
-        page_size: 100,
-        q: query || undefined,
-        subreddit: subreddit || undefined,
-      })
-      setAllPosts(data.items)
+      if (query.trim()) {
+        const data = await narrativeLensApi.semanticSearch(query, 10000, 0.20)
+        let items = data.results as RedditPost[]
+        if (subreddit) {
+          items = items.filter(post => post.subreddit.toLowerCase() === subreddit.toLowerCase())
+        }
+        setAllPosts(items)
+      } else {
+        const data = await narrativeLensApi.getPosts({
+          page: 1,
+          page_size: 100,
+          subreddit: subreddit || undefined,
+        })
+        setAllPosts(data.items)
+      }
     } catch {
       /* non-critical */
     }
