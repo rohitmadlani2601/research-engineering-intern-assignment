@@ -118,6 +118,61 @@ class TestPosts:
         assert resp.json()["total"] > 0
 
 
+class TestTimestamp:
+    def test_created_utc_is_iso_utc_in_response(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/posts/test0001")
+        assert resp.status_code == 200
+        ts = resp.json()["created_utc"]
+        assert isinstance(ts, str)
+        assert "T" in ts
+        assert ts.endswith("+00:00") or ts.endswith("Z")
+
+    def test_parse_utc_from_float(self) -> None:
+        post = RedditPost(
+            id="ts1",
+            title="T",
+            text="",
+            author="u",
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=1_739_858_460.0,
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.created_utc.tzinfo is not None
+        assert post.created_utc.tzinfo == timezone.utc
+        assert post.created_utc.isoformat().endswith("+00:00")
+
+    def test_parse_utc_naive_datetime_gets_utc(self) -> None:
+        naive = datetime(2024, 6, 1, 12, 0, 0)
+        post = RedditPost(
+            id="ts2",
+            title="T",
+            text="",
+            author="u",
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=naive,
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.created_utc.tzinfo == timezone.utc
+
+
 class TestFullTextEdgeCases:
     def test_missing_selftext(self) -> None:
         post = RedditPost(

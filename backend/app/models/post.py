@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -33,9 +33,9 @@ class RedditPost(BaseModel):
     @classmethod
     def parse_utc(cls, v: Any) -> datetime:
         if isinstance(v, (int, float)):
-            return datetime.utcfromtimestamp(v)
+            return datetime.fromtimestamp(v, tz=timezone.utc)
         if isinstance(v, datetime):
-            return v
+            return v if v.tzinfo is not None else v.replace(tzinfo=timezone.utc)
         raise ValueError(f"Cannot parse timestamp: {v!r}")
 
     @field_validator("score", "num_comments", "num_crossposts", mode="before")
