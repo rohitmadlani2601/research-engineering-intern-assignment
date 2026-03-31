@@ -82,18 +82,19 @@ def load_posts(path: Path, max_rows: int = 100_000) -> list[RedditPost]:
                 continue
 
             try:
-                row = _parse_raw_row(raw)
                 data_block = raw.get("data", raw)
-                missing = _REQUIRED_FIELDS - set(k for k, v in data_block.items() if v is not None)
+                missing = {f for f in _REQUIRED_FIELDS if not data_block.get(f)}
                 if missing:
                     skipped_invalid += 1
+                    log.warning("skipped_invalid_row", lineno=lineno, missing_fields=sorted(missing))
                     continue
 
+                row = _parse_raw_row(raw)
                 post = RedditPost(**row)
                 posts.append(post)
             except Exception as exc:
                 skipped_invalid += 1
-                log.debug("row_validation_error", lineno=lineno, error=str(exc))
+                log.warning("row_validation_error", lineno=lineno, error=str(exc))
 
     log.info(
         "dataset_load_complete",

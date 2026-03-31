@@ -18,9 +18,9 @@ def extract_hashtags(text: str) -> list[str]:
 
 
 def safe_get(data: dict[str, Any], key: str, default: Any = None) -> Any:
-    """Null-safe dict accessor that also coerces empty strings to default."""
+    """Null-safe dict accessor: treats missing and None values as absent."""
     val = data.get(key, default)
-    if val == "" and default is not None:
+    if val is None:
         return default
     return val
 

@@ -259,3 +259,139 @@ class TestFullTextEdgeCases:
         assert post.full_text == ""
         assert post.title == ""
         assert post.text == ""
+
+
+class TestSafeGet:
+    """Unit-tests for the null-safe dict accessor."""
+
+    from app.utils.helpers import safe_get
+
+    def test_missing_key_returns_default(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({}, "title", "") == ""
+
+    def test_none_value_returns_default(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({"author": None}, "author", "[deleted]") == "[deleted]"
+
+    def test_none_value_str_default(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({"title": None}, "title", "") == ""
+
+    def test_present_value_returned(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({"score": 42}, "score", 0) == 42
+
+    def test_zero_value_not_treated_as_missing(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({"score": 0}, "score", 99) == 0
+
+    def test_false_value_not_treated_as_missing(self) -> None:
+        from app.utils.helpers import safe_get
+        assert safe_get({"is_self": False}, "is_self", True) is False
+
+
+class TestDatasetRobustness:
+    """Tests that _parse_raw_row and load_posts handle noisy real-world data."""
+
+    def _base_data(self) -> dict:
+        return {
+            "id": "abc123",
+            "title": "Hello world",
+            "selftext": "Some body",
+            "author": "user1",
+            "subreddit": "python",
+            "score": 10,
+            "upvote_ratio": 0.9,
+            "num_comments": 5,
+            "created_utc": 1_739_858_460.0,
+            "url": "https://reddit.com/r/python/abc123",
+            "domain": "self.python",
+            "permalink": "/r/python/abc123",
+            "is_self": True,
+            "over_18": False,
+            "stickied": False,
+            "num_crossposts": 0,
+        }
+
+    def test_null_title_defaults_to_empty(self) -> None:
+        from app.services.dataset import _parse_raw_row
+        data = self._base_data()
+        data["title"] = None
+        row = _parse_raw_row(data)
+        assert row["title"] == ""
+
+    def test_null_selftext_defaults_to_empty(self) -> None:
+        from app.services.dataset import _parse_raw_row
+        data = self._base_data()
+        data["selftext"] = None
+        row = _parse_raw_row(data)
+        assert row["text"] == ""
+
+    def test_null_author_defaults_to_deleted(self) -> None:
+        from app.services.dataset import _parse_raw_row
+        data = self._base_data()
+        data["author"] = None
+        row = _parse_raw_row(data)
+        assert row["author"] == "[deleted]"
+
+    def test_full_text_safe_when_both_null(self) -> None:
+        from app.services.dataset import _parse_raw_row
+        data = self._base_data()
+        data["title"] = None
+        data["selftext"] = None
+        row = _parse_raw_row(data)
+        assert row["full_text"] == ""
+
+    def test_missing_required_field_skipped(self) -> None:
+        """Records with null required fields must not be loaded."""
+        import tempfile, json
+        from pathlib import Path
+        from app.services.dataset import load_posts
+
+        data = self._base_data()
+        data["author"] = None  # required field is null
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(json.dumps(data) + "\n")
+            tmp = Path(f.name)
+
+        posts = load_posts(tmp)
+        tmp.unlink()
+        assert posts == []
+
+    def test_valid_row_loaded(self) -> None:
+        """A fully valid row must be loaded without error."""
+        import tempfile, json
+        from pathlib import Path
+        from app.services.dataset import load_posts
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(json.dumps(self._base_data()) + "\n")
+            tmp = Path(f.name)
+
+        posts = load_posts(tmp)
+        tmp.unlink()
+        assert len(posts) == 1
+        assert posts[0].id == "abc123"
+        assert posts[0].author == "user1"
+
+    def test_malformed_json_skipped(self) -> None:
+        """Lines that are not valid JSON must be skipped, not crash."""
+        import tempfile
+        from pathlib import Path
+        from app.services.dataset import load_posts
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as f:
+            f.write("{this is not json}\n")
+            tmp = Path(f.name)
+
+        posts = load_posts(tmp)
+        tmp.unlink()
+        assert posts == []
