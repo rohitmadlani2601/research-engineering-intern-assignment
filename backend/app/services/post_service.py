@@ -42,7 +42,7 @@ class PostService:
             page_size: Number of items per page.
             subreddit: Case-insensitive subreddit filter.
             author: Case-insensitive author filter.
-            q: Case-insensitive keyword filter applied to title + text.
+            q: Case-insensitive keyword filter applied to full_text.
         """
         filtered = self._posts
 
@@ -57,9 +57,7 @@ class PostService:
         if q:
             query = q.lower()
             filtered = [
-                p
-                for p in filtered
-                if query in p.title.lower() or query in p.text.lower()
+                p for p in filtered if query in p.full_text.lower()
             ]
 
         total = len(filtered)

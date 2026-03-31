@@ -104,3 +104,103 @@ class TestPosts:
     def test_page_size_exceeds_max(self, client: TestClient) -> None:
         resp = client.get("/api/v1/posts?page_size=999")
         assert resp.status_code == 422  # validation error
+
+    def test_full_text_in_response(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/posts/test0001")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "full_text" in body
+        assert body["full_text"] == "Test Post 1 Sample body text about climate change and politics"
+
+    def test_full_text_search(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/posts?q=Test Post 1")
+        assert resp.status_code == 200
+        assert resp.json()["total"] > 0
+
+
+class TestFullTextEdgeCases:
+    def test_missing_selftext(self) -> None:
+        post = RedditPost(
+            id="edge1",
+            title="Only Title",
+            text="",
+            author="u",
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.full_text == "Only Title"
+
+    def test_missing_title(self) -> None:
+        post = RedditPost(
+            id="edge2",
+            title="",
+            text="Only Body",
+            author="u",
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.full_text == "Only Body"
+
+    def test_both_empty(self) -> None:
+        post = RedditPost(
+            id="edge3",
+            title="",
+            text="",
+            author="u",
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.full_text == ""
+
+    def test_none_coerced_fields(self) -> None:
+        post = RedditPost(
+            id="edge4",
+            title=None,
+            text=None,
+            author=None,
+            subreddit="s",
+            score=0,
+            upvote_ratio=0.0,
+            num_comments=0,
+            created_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            url="",
+            domain="",
+            permalink="",
+            is_self=True,
+            over_18=False,
+            stickied=False,
+            num_crossposts=0,
+        )
+        assert post.full_text == ""
+        assert post.title == ""
+        assert post.text == ""

@@ -12,6 +12,7 @@ class RedditPost(BaseModel):
     id: str
     title: str
     text: str
+    full_text: str = ""
     author: str
     subreddit: str
     score: int
@@ -53,12 +54,22 @@ class RedditPost(BaseModel):
         except (TypeError, ValueError):
             return 0.0
 
-    @field_validator("title", "text", "author", "subreddit", "url", "domain", "permalink", mode="before")
+    @field_validator("title", "text", "full_text", "author", "subreddit", "url", "domain", "permalink", mode="before")
     @classmethod
     def coerce_str(cls, v: Any) -> str:
         if v is None:
             return ""
         return str(v)
+
+    @model_validator(mode="after")
+    def derive_full_text(self) -> "RedditPost":
+        if not self.full_text:
+            object.__setattr__(
+                self,
+                "full_text",
+                ((self.title or "") + " " + (self.text or "")).strip(),
+            )
+        return self
 
     model_config = {"frozen": True}
 

@@ -18,14 +18,15 @@ def _parse_raw_row(raw: dict[str, Any]) -> dict[str, Any]:
     """Flatten the Reddit API envelope and enrich fields."""
     data: dict[str, Any] = raw.get("data", raw)
 
-    combined_text = " ".join(
-        filter(None, [data.get("title"), data.get("selftext")])
-    )
+    title: str = safe_get(data, "title", "")
+    text: str = safe_get(data, "selftext", "")
+    full_text: str = ((title or "") + " " + (text or "")).strip()
 
     return {
         "id": safe_get(data, "id", ""),
-        "title": safe_get(data, "title", ""),
-        "text": safe_get(data, "selftext", ""),
+        "title": title,
+        "text": text,
+        "full_text": full_text,
         "author": safe_get(data, "author", "[deleted]"),
         "subreddit": safe_get(data, "subreddit", ""),
         "score": safe_get(data, "score", 0),
@@ -39,8 +40,8 @@ def _parse_raw_row(raw: dict[str, Any]) -> dict[str, Any]:
         "over_18": bool(data.get("over_18", False)),
         "stickied": bool(data.get("stickied", False)),
         "num_crossposts": safe_get(data, "num_crossposts", 0),
-        "hashtags": extract_hashtags(combined_text),
-        "urls_in_text": extract_urls(combined_text),
+        "hashtags": extract_hashtags(full_text),
+        "urls_in_text": extract_urls(full_text),
     }
 
 
