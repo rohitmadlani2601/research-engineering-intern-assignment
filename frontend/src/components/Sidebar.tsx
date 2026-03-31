@@ -21,8 +21,6 @@ interface SidebarProps {
   onQueryChange: (q: string) => void
   subreddit: string
   onSubredditChange: (s: string) => void
-  clusterCount: number
-  onClusterCountChange: (n: number) => void
   subreddits: string[]
 }
 
@@ -41,8 +39,6 @@ export default function Sidebar({
   onQueryChange,
   subreddit,
   onSubredditChange,
-  clusterCount,
-  onClusterCountChange,
   subreddits,
 }: SidebarProps) {
   const [filtersOpen, setFiltersOpen] = useState(true)
@@ -189,36 +185,7 @@ export default function Sidebar({
               </select>
             </div>
 
-            {/* Cluster slider */}
-            <div>
-              <label
-                htmlFor="filter-clusters"
-                className="block text-xs mb-1.5 font-medium"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                Topic Clusters
-                <span
-                  className="ml-auto float-right font-mono"
-                  style={{ color: 'var(--color-accent)' }}
-                >
-                  {clusterCount}
-                </span>
-              </label>
-              <input
-                id="filter-clusters"
-                type="range"
-                min={2}
-                max={20}
-                value={clusterCount}
-                onChange={e => onClusterCountChange(Number(e.target.value))}
-                className="w-full h-1 rounded appearance-none cursor-pointer"
-                style={{ accentColor: 'var(--color-accent)' }}
-              />
-              <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                <span>2</span>
-                <span>20</span>
-              </div>
-            </div>
+
           </div>
         )}
       </div>

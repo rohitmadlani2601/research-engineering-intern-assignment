@@ -10,10 +10,11 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health_router, posts_router, search_router
+from app.api import clusters_router, health_router, posts_router, search_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.models.post import ErrorDetail
+from app.services.clustering_service import ClusteringService
 from app.services.dataset import load_posts
 from app.services.embedding_service import EmbeddingService
 from app.services.post_service import PostService
@@ -58,6 +59,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:  # noqa: BLE001
         logger.error("semantic_search_startup_failed", error=str(exc))
         app.state.search_service = None
+        embedding_svc = None  # type: ignore[assignment]
+
+    # ── Topic clustering ───────────────────────────────────────────────
+    # Runs after embeddings are ready so it can reuse the cached matrix.
+    # Results are stored on app.state and never recomputed.
+    try:
+        clustering_svc = ClusteringService()
+        if embedding_svc is not None:
+            await asyncio.to_thread(
+                clustering_svc.run, posts, embedding_svc
+            )
+        app.state.clustering_service = clustering_svc
+        logger.info(
+            "clustering_ready",
+            num_clusters=(
+                clustering_svc.result.num_clusters
+                if clustering_svc.result
+                else 0
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("clustering_startup_failed", error=str(exc))
+        app.state.clustering_service = None
 
     yield
 
@@ -90,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(posts_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
+    app.include_router(clusters_router, prefix="/api/v1")
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

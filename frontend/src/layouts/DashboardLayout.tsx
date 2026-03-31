@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Sidebar, { type NavItem } from '../components/Sidebar'
 import OverviewPage from '../pages/OverviewPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
+import TopicsPage from '../pages/TopicsPage'
 import { narrativeLensApi, type HealthStatus } from '../services/api'
 import { Activity } from 'lucide-react'
 
@@ -9,7 +10,6 @@ export default function DashboardLayout() {
   const [activeNav, setActiveNav] = useState<NavItem>('overview')
   const [query, setQuery] = useState('')
   const [subreddit, setSubreddit] = useState('')
-  const [clusterCount, setClusterCount] = useState(8)
   const [subreddits, setSubreddits] = useState<string[]>([])
   const [health, setHealth] = useState<HealthStatus | null>(null)
 
@@ -21,7 +21,7 @@ export default function DashboardLayout() {
   const renderPage = () => {
     switch (activeNav) {
       case 'overview':
-        return <OverviewPage query={query} subreddit={subreddit} clusterCount={clusterCount} />
+        return <OverviewPage query={query} subreddit={subreddit} />
       case 'network':
         return (
           <PlaceholderPage
@@ -30,12 +30,7 @@ export default function DashboardLayout() {
           />
         )
       case 'topics':
-        return (
-          <PlaceholderPage
-            title="Topic Clusters"
-            description="Explore BERTopic-powered topic clusters with dynamic re-clustering via the sidebar slider."
-          />
-        )
+        return <TopicsPage />
       case 'embeddings':
         return (
           <PlaceholderPage
@@ -62,8 +57,6 @@ export default function DashboardLayout() {
         onQueryChange={setQuery}
         subreddit={subreddit}
         onSubredditChange={setSubreddit}
-        clusterCount={clusterCount}
-        onClusterCountChange={setClusterCount}
         subreddits={subreddits}
       />
 

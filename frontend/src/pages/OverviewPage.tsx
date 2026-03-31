@@ -18,7 +18,6 @@ import { format, parseISO } from 'date-fns'
 interface OverviewPageProps {
   query: string
   subreddit: string
-  clusterCount: number
 }
 
 interface DailyCount {
@@ -39,12 +38,13 @@ function buildTimeSeries(posts: RedditPost[]): DailyCount[] {
 
 const PAGE_SIZE = 10
 
-export default function OverviewPage({ query, subreddit, clusterCount }: OverviewPageProps) {
+export default function OverviewPage({ query, subreddit }: OverviewPageProps) {
   const [result, setResult] = useState<PaginatedPosts | null>(null)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [allPosts, setAllPosts] = useState<RedditPost[]>([])
+  const [numClusters, setNumClusters] = useState<number | null>(null)
 
   const fetchPage = useCallback(async (p: number) => {
     setLoading(true)
@@ -91,6 +91,7 @@ export default function OverviewPage({ query, subreddit, clusterCount }: Overvie
   const fetchAllForChart = useCallback(async () => {
     try {
       if (query.trim()) {
+        // Semantic search already returns up to 10 000 results — use as-is
         const data = await narrativeLensApi.semanticSearch(query, 10000, 0.20)
         let items = data.results as RedditPost[]
         if (subreddit) {
@@ -98,17 +99,44 @@ export default function OverviewPage({ query, subreddit, clusterCount }: Overvie
         }
         setAllPosts(items)
       } else {
-        const data = await narrativeLensApi.getPosts({
+        // 1️⃣ Fetch page 1 to learn how many pages exist
+        const first = await narrativeLensApi.getPosts({
           page: 1,
           page_size: 100,
           subreddit: subreddit || undefined,
         })
-        setAllPosts(data.items)
+
+        if (first.pages <= 1) {
+          // All data already in the first response
+          setAllPosts(first.items)
+          return
+        }
+
+        // 2️⃣ Fire all remaining pages in parallel
+        const pageNumbers = Array.from({ length: first.pages - 1 }, (_, i) => i + 2)
+        const rest = await Promise.all(
+          pageNumbers.map(p =>
+            narrativeLensApi.getPosts({
+              page: p,
+              page_size: 100,
+              subreddit: subreddit || undefined,
+            })
+          )
+        )
+
+        setAllPosts([first.items, ...rest.map(r => r.items)].flat())
       }
     } catch {
-      /* non-critical */
+      /* non-critical — chart is supplementary */
     }
   }, [query, subreddit])
+
+  // Fetch real cluster count once on mount
+  useEffect(() => {
+    narrativeLensApi.getClusters()
+      .then(res => setNumClusters(res.num_clusters))
+      .catch(() => { /* non-critical */ })
+  }, [])
 
   useEffect(() => {
     setPage(1)
@@ -149,8 +177,8 @@ export default function OverviewPage({ query, subreddit, clusterCount }: Overvie
         />
         <StatCard
           label="Topic Clusters"
-          value={clusterCount}
-          sub="tunable via sidebar"
+          value={numClusters ?? '—'}
+          sub="auto-detected · KMeans"
         />
       </div>
 

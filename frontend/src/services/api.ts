@@ -69,6 +69,30 @@ export interface SemanticSearchResponse {
   message: string | null
 }
 
+// ── Cluster types ─────────────────────────────────────────────────────────────
+export interface ClusterSummary {
+  cluster_id: number
+  label: string
+  size: number
+  top_keywords: string[]
+  is_small: boolean
+}
+
+export interface ClustersResponse {
+  num_clusters: number
+  total_posts_clustered: number
+  clusters: ClusterSummary[]
+  message: string | null
+}
+
+export interface ClusterPostsResponse {
+  cluster_id: number
+  label: string
+  size: number
+  top_keywords: string[]
+  posts: RedditPost[]
+}
+
 export const narrativeLensApi = {
   async getHealth(): Promise<HealthStatus> {
     const { data } = await api.get<HealthStatus>('/health')
@@ -95,6 +119,16 @@ export const narrativeLensApi = {
 
   async semanticSearch(query: string, top_k: number = 1000, threshold: number = 0.20): Promise<SemanticSearchResponse> {
     const { data } = await api.post<SemanticSearchResponse>('/api/v1/semantic-search', { query, top_k, threshold })
+    return data
+  },
+
+  async getClusters(): Promise<ClustersResponse> {
+    const { data } = await api.get<ClustersResponse>('/api/v1/clusters')
+    return data
+  },
+
+  async getClusterPosts(clusterId: number): Promise<ClusterPostsResponse> {
+    const { data } = await api.get<ClusterPostsResponse>(`/api/v1/clusters/${clusterId}/posts`)
     return data
   },
 }
