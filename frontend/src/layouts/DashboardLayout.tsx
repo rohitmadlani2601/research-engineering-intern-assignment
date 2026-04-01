@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import Sidebar, { type NavItem } from '../components/Sidebar'
 import OverviewPage from '../pages/OverviewPage'
-import PlaceholderPage from '../pages/PlaceholderPage'
 import TopicsPage from '../pages/TopicsPage'
 import TimeSeriesPage from '../pages/TimeSeriesPage'
 import NetworkPage from '../pages/NetworkPage'
 import EmbeddingMapPage from '../pages/EmbeddingMapPage'
+import ChatPage from '../pages/ChatPage'
 import { narrativeLensApi, type HealthStatus } from '../services/api'
 import { Activity } from 'lucide-react'
 
@@ -43,12 +43,7 @@ export default function DashboardLayout() {
       case 'embeddings':
         return <EmbeddingMapPage />
       case 'chat':
-        return (
-          <PlaceholderPage
-            title="Semantic Chat"
-            description="RAG-powered chatbot for querying the dataset with semantic search — zero keyword overlap required."
-          />
-        )
+        return <ChatPage />
     }
   }
 

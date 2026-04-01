@@ -1,3 +1,4 @@
+from app.api.chat import router as chat_router
 from app.api.clusters import router as clusters_router
 from app.api.embedding_map import router as embedding_map_router
 from app.api.health import router as health_router
@@ -7,6 +8,7 @@ from app.api.search import router as search_router
 from app.api.timeseries import router as timeseries_router
 
 __all__ = [
+    "chat_router",
     "clusters_router",
     "embedding_map_router",
     "health_router",

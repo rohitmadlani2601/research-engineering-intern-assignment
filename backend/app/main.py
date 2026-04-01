@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import (
+    chat_router,
     clusters_router,
     embedding_map_router,
     health_router,
@@ -22,6 +23,7 @@ from app.api import (
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.models.post import ErrorDetail
+from app.services.chat_service import ChatService
 from app.services.clustering_service import ClusteringService
 from app.services.dataset import load_posts
 from app.services.embedding_service import EmbeddingService
@@ -69,6 +71,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error("semantic_search_startup_failed", error=str(exc))
         app.state.search_service = None
         embedding_svc = None  # type: ignore[assignment]
+
+    # ── Chat service (RAG pipeline) ───────────────────────────────────────────
+    if app.state.search_service is not None:
+        try:
+            app.state.chat_service = ChatService(
+                search_service=app.state.search_service
+            )
+            logger.info("chat_service_ready")
+        except Exception as exc:  # noqa: BLE001
+            logger.error("chat_service_startup_failed", error=str(exc))
+            app.state.chat_service = None
+    else:
+        app.state.chat_service = None
+        logger.warning("chat_service_skipped", reason="search_service_not_ready")
 
     # ── Topic clustering ───────────────────────────────────────────────────
     clustering_svc = ClusteringService()
@@ -165,6 +181,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(posts_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
     app.include_router(clusters_router, prefix="/api/v1")
     app.include_router(timeseries_router, prefix="/api/v1")
     app.include_router(network_router, prefix="/api/v1")

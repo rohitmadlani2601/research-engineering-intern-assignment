@@ -148,6 +148,24 @@ export interface EmbeddingMapResponse {
   sampled_posts: number
 }
 
+// ── Chat types ─────────────────────────────────────────────────────────────────
+export interface ChatSource {
+  title: string
+  text: string
+  similarity: number
+  subreddit: string
+  url: string
+  permalink: string
+}
+
+export interface ChatResponse {
+  answer: string
+  sources: ChatSource[]
+  query: string
+  total_retrieved: number
+  message: string | null
+}
+
 // ── API client ────────────────────────────────────────────────────────────────
 export const narrativeLensApi = {
   async getHealth(): Promise<HealthStatus> {
@@ -205,6 +223,11 @@ export const narrativeLensApi = {
     const params: Record<string, number> = {}
     if (sample) params.sample = sample
     const { data } = await api.get<EmbeddingMapResponse>('/api/v1/embedding-map', { params })
+    return data
+  },
+
+  async chat(query: string): Promise<ChatResponse> {
+    const { data } = await api.post<ChatResponse>('/api/v1/chat', { query })
     return data
   },
 }
