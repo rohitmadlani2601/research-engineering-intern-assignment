@@ -5,10 +5,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15_000,
+  timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ── Core types ─────────────────────────────────────────────────────────────────
 export interface HealthStatus {
   status: string
   version: string
@@ -69,7 +70,7 @@ export interface SemanticSearchResponse {
   message: string | null
 }
 
-// ── Cluster types ─────────────────────────────────────────────────────────────
+// ── Cluster types ──────────────────────────────────────────────────────────────
 export interface ClusterSummary {
   cluster_id: number
   label: string
@@ -93,6 +94,61 @@ export interface ClusterPostsResponse {
   posts: RedditPost[]
 }
 
+// ── Time-series types ──────────────────────────────────────────────────────────
+export interface TimeSeriesPoint {
+  date: string
+  count: number
+}
+
+export interface TimeSeriesResponse {
+  points: TimeSeriesPoint[]
+  summary: string
+  peak_date: string | null
+  peak_count: number
+  total_posts: number
+  date_range_days: number
+  query: string | null
+}
+
+// ── Network types ──────────────────────────────────────────────────────────────
+export interface NetworkNode {
+  id: string
+  pagerank: number
+  community: number
+  post_count: number
+}
+
+export interface NetworkEdge {
+  source: string
+  target: string
+  weight: number
+}
+
+export interface NetworkResponse {
+  nodes: NetworkNode[]
+  edges: NetworkEdge[]
+  num_nodes: number
+  num_edges: number
+  num_communities: number
+}
+
+// ── Embedding map types ────────────────────────────────────────────────────────
+export interface EmbeddingPoint {
+  post_id: string
+  x: number
+  y: number
+  cluster_id: number
+  label: string
+}
+
+export interface EmbeddingMapResponse {
+  points: EmbeddingPoint[]
+  explained_variance: number
+  total_posts: number
+  sampled_posts: number
+}
+
+// ── API client ────────────────────────────────────────────────────────────────
 export const narrativeLensApi = {
   async getHealth(): Promise<HealthStatus> {
     const { data } = await api.get<HealthStatus>('/health')
@@ -129,6 +185,26 @@ export const narrativeLensApi = {
 
   async getClusterPosts(clusterId: number): Promise<ClusterPostsResponse> {
     const { data } = await api.get<ClusterPostsResponse>(`/api/v1/clusters/${clusterId}/posts`)
+    return data
+  },
+
+  async getTimeSeries(query?: string, top_k?: number): Promise<TimeSeriesResponse> {
+    const params: Record<string, string | number> = {}
+    if (query && query.trim()) params.query = query.trim()
+    if (top_k) params.top_k = top_k
+    const { data } = await api.get<TimeSeriesResponse>('/api/v1/timeseries', { params })
+    return data
+  },
+
+  async getNetwork(): Promise<NetworkResponse> {
+    const { data } = await api.get<NetworkResponse>('/api/v1/network')
+    return data
+  },
+
+  async getEmbeddingMap(sample?: number): Promise<EmbeddingMapResponse> {
+    const params: Record<string, number> = {}
+    if (sample) params.sample = sample
+    const { data } = await api.get<EmbeddingMapResponse>('/api/v1/embedding-map', { params })
     return data
   },
 }

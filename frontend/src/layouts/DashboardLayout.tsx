@@ -3,8 +3,20 @@ import Sidebar, { type NavItem } from '../components/Sidebar'
 import OverviewPage from '../pages/OverviewPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
 import TopicsPage from '../pages/TopicsPage'
+import TimeSeriesPage from '../pages/TimeSeriesPage'
+import NetworkPage from '../pages/NetworkPage'
+import EmbeddingMapPage from '../pages/EmbeddingMapPage'
 import { narrativeLensApi, type HealthStatus } from '../services/api'
 import { Activity } from 'lucide-react'
+
+const PAGE_TITLES: Record<NavItem, string> = {
+  overview: 'Overview',
+  timeseries: 'Time Series',
+  network: 'Network Graph',
+  topics: 'Topic Clusters',
+  embeddings: 'Embedding Map',
+  chat: 'Semantic Chat',
+}
 
 export default function DashboardLayout() {
   const [activeNav, setActiveNav] = useState<NavItem>('overview')
@@ -22,22 +34,14 @@ export default function DashboardLayout() {
     switch (activeNav) {
       case 'overview':
         return <OverviewPage query={query} subreddit={subreddit} />
+      case 'timeseries':
+        return <TimeSeriesPage />
       case 'network':
-        return (
-          <PlaceholderPage
-            title="Network Graph"
-            description="Visualize co-sharing networks between accounts and track influence propagation using PageRank and Louvain community detection."
-          />
-        )
+        return <NetworkPage />
       case 'topics':
         return <TopicsPage />
       case 'embeddings':
-        return (
-          <PlaceholderPage
-            title="Embedding Visualization"
-            description="Interactive 2D UMAP projection of post embeddings using Nomic Atlas or Datamapplot."
-          />
-        )
+        return <EmbeddingMapPage />
       case 'chat':
         return (
           <PlaceholderPage
@@ -71,8 +75,8 @@ export default function DashboardLayout() {
           }}
         >
           <div>
-            <h1 className="text-sm font-semibold capitalize" style={{ color: 'var(--color-text-primary)' }}>
-              {activeNav}
+            <h1 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              {PAGE_TITLES[activeNav]}
             </h1>
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               {health

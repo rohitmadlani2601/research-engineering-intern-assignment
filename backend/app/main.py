@@ -10,15 +10,26 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import clusters_router, health_router, posts_router, search_router
+from app.api import (
+    clusters_router,
+    embedding_map_router,
+    health_router,
+    network_router,
+    posts_router,
+    search_router,
+    timeseries_router,
+)
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.models.post import ErrorDetail
 from app.services.clustering_service import ClusteringService
 from app.services.dataset import load_posts
 from app.services.embedding_service import EmbeddingService
+from app.services.embedding_viz_service import EmbeddingVizService
+from app.services.network_service import NetworkService
 from app.services.post_service import PostService
 from app.services.search_service import SearchService
+from app.services.timeseries_service import TimeSeriesService
 
 configure_logging()
 logger = structlog.get_logger(__name__)
@@ -41,8 +52,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.post_service = None
 
     # ── Semantic search index ──────────────────────────────────────────────
-    # Run model loading and embedding generation in a thread so we don't
-    # block the event loop during the potentially long startup phase.
     try:
         embedding_svc = EmbeddingService()
         await asyncio.to_thread(embedding_svc.load_model)
@@ -61,15 +70,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.search_service = None
         embedding_svc = None  # type: ignore[assignment]
 
-    # ── Topic clustering ───────────────────────────────────────────────
-    # Runs after embeddings are ready so it can reuse the cached matrix.
-    # Results are stored on app.state and never recomputed.
+    # ── Topic clustering ───────────────────────────────────────────────────
+    clustering_svc = ClusteringService()
     try:
-        clustering_svc = ClusteringService()
         if embedding_svc is not None:
-            await asyncio.to_thread(
-                clustering_svc.run, posts, embedding_svc
-            )
+            await asyncio.to_thread(clustering_svc.run, posts, embedding_svc)
         app.state.clustering_service = clustering_svc
         logger.info(
             "clustering_ready",
@@ -82,6 +87,52 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:  # noqa: BLE001
         logger.error("clustering_startup_failed", error=str(exc))
         app.state.clustering_service = None
+
+    # ── Time-series ────────────────────────────────────────────────────────
+    try:
+        ts_svc = TimeSeriesService()
+        await asyncio.to_thread(ts_svc.run, posts)
+        app.state.timeseries_service = ts_svc
+        logger.info(
+            "timeseries_ready",
+            date_range_days=ts_svc.result.date_range_days if ts_svc.result else 0,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("timeseries_startup_failed", error=str(exc))
+        app.state.timeseries_service = None
+
+    # ── Network graph ──────────────────────────────────────────────────────
+    try:
+        network_svc = NetworkService()
+        if clustering_svc.result is not None:
+            await asyncio.to_thread(
+                network_svc.run, posts, clustering_svc.result
+            )
+        app.state.network_service = network_svc
+        logger.info(
+            "network_ready",
+            num_nodes=network_svc.result.num_nodes if network_svc.result else 0,
+            num_edges=network_svc.result.num_edges if network_svc.result else 0,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("network_startup_failed", error=str(exc))
+        app.state.network_service = None
+
+    # ── Embedding visualisation ────────────────────────────────────────────
+    try:
+        embedding_viz_svc = EmbeddingVizService()
+        if embedding_svc is not None and clustering_svc.result is not None:
+            await asyncio.to_thread(
+                embedding_viz_svc.run, posts, embedding_svc, clustering_svc.result
+            )
+        app.state.embedding_viz_service = embedding_viz_svc
+        logger.info(
+            "embedding_viz_ready",
+            total=embedding_viz_svc.result.total_posts if embedding_viz_svc.result else 0,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("embedding_viz_startup_failed", error=str(exc))
+        app.state.embedding_viz_service = None
 
     yield
 
@@ -115,6 +166,9 @@ def create_app() -> FastAPI:
     app.include_router(posts_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
     app.include_router(clusters_router, prefix="/api/v1")
+    app.include_router(timeseries_router, prefix="/api/v1")
+    app.include_router(network_router, prefix="/api/v1")
+    app.include_router(embedding_map_router, prefix="/api/v1")
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

@@ -10,9 +10,10 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  LineChart,
 } from 'lucide-react'
 
-export type NavItem = 'overview' | 'network' | 'topics' | 'embeddings' | 'chat'
+export type NavItem = 'overview' | 'timeseries' | 'network' | 'topics' | 'embeddings' | 'chat'
 
 interface SidebarProps {
   activeNav: NavItem
@@ -25,11 +26,12 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={15} /> },
-  { id: 'network', label: 'Network', icon: <Network size={15} /> },
-  { id: 'topics', label: 'Topics', icon: <Layers size={15} /> },
-  { id: 'embeddings', label: 'Embeddings', icon: <Braces size={15} /> },
-  { id: 'chat', label: 'Chat', icon: <MessageCircle size={15} /> },
+  { id: 'overview',    label: 'Overview',    icon: <LayoutDashboard size={15} /> },
+  { id: 'timeseries',  label: 'Time Series', icon: <LineChart size={15} /> },
+  { id: 'network',     label: 'Network',     icon: <Network size={15} /> },
+  { id: 'topics',      label: 'Topics',      icon: <Layers size={15} /> },
+  { id: 'embeddings',  label: 'Embeddings',  icon: <Braces size={15} /> },
+  { id: 'chat',        label: 'Chat',        icon: <MessageCircle size={15} /> },
 ]
 
 export default function Sidebar({
@@ -87,12 +89,8 @@ export default function Sidebar({
               color: 'var(--color-text-primary)',
               border: '1px solid var(--color-border)',
             }}
-            onFocus={e => {
-              e.currentTarget.style.borderColor = 'var(--color-accent)'
-            }}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = 'var(--color-border)'
-            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)' }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
           />
           {query && (
             <button
@@ -184,8 +182,6 @@ export default function Sidebar({
                 ))}
               </select>
             </div>
-
-
           </div>
         )}
       </div>
@@ -193,7 +189,7 @@ export default function Sidebar({
       {/* Footer */}
       <div className="px-5 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Phase 1 · v1.0.0
+          Phase 2 · v2.0.0
         </p>
       </div>
     </aside>
