@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { SendHorizonal, Bot, User, ExternalLink, Sparkles, AlertCircle, RotateCcw } from 'lucide-react'
 import { narrativeLensApi, type ChatResponse, type ChatSource } from '../services/api'
+import InfoPanel from '../components/InfoPanel'
+import HelpModal from '../components/HelpModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -290,6 +292,12 @@ export default function ChatPage() {
     <div className="chat-root">
       {/* ── Styles ── */}
       <style>{CHAT_STYLES}</style>
+
+      {/* ── Storytelling info panel ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ flex: 1 }}><InfoPanel tab="chat" /></div>
+        <HelpModal tab="chat" />
+      </div>
 
       {/* ── Empty state / welcome ── */}
       {isEmpty && (

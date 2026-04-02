@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Network, AlertCircle, Loader2, Users, GitBranch, Award, TrendingUp, Info } from 'lucide-react'
+import { Network, AlertCircle, Loader2, Users, GitBranch, Award, TrendingUp, Info, Filter } from 'lucide-react'
 import { narrativeLensApi, type NetworkResponse, type NetworkNode } from '../services/api'
+import InfoPanel from '../components/InfoPanel'
+import HelpModal from '../components/HelpModal'
 
 // ── palette ───────────────────────────────────────────────────────────────────
 const COMMUNITY_COLORS = [
@@ -121,9 +123,9 @@ export default function NetworkPage() {
   const [simNodes, setSimNodes] = useState<SimNode[]>([])
   const [hovered, setHovered] = useState<SimNode | null>(null)
   const [selected, setSelected] = useState<SimNode | null>(null)
+  const [communityFilter, setCommunityFilter] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 700, h: 480 })
-  // Store edges and visNode refs for layout trigger
   const visNodesRef = useRef<NetworkNode[]>([])
   const visEdgesRef = useRef<{ source: string; target: string; weight: number }[]>([])
 
@@ -153,10 +155,13 @@ export default function NetworkPage() {
   useEffect(() => {
     if (!data || !dims.w || !dims.h) return
 
-    const TOP_NODES = 80
+    const TOP_NODES = 100
     const nodes = data.nodes.slice(0, TOP_NODES)
     const nodeIdSet = new Set(nodes.map(n => n.id))
-    const edges = data.edges.filter(e => nodeIdSet.has(e.source) && nodeIdSet.has(e.target))
+    // Filter weak edges: keep edges with weight >= 2, unless that leaves very few
+    let edges = data.edges.filter(e => nodeIdSet.has(e.source) && nodeIdSet.has(e.target))
+    const strongEdges = edges.filter(e => e.weight >= 2)
+    edges = strongEdges.length >= 10 ? strongEdges : edges
 
     visNodesRef.current = nodes
     visEdgesRef.current = edges
@@ -179,8 +184,22 @@ export default function NetworkPage() {
   const description = data ? buildDescription(data.nodes, data.num_communities, data.num_edges) : ''
   const visEdges = visEdgesRef.current
 
+  // Filtered nodes by community
+  const allCommunities = Array.from(new Set(simNodes.map(n => n.community))).sort((a, b) => a - b)
+  const filteredNodes = communityFilter !== null
+    ? simNodes.filter(n => n.community === communityFilter)
+    : simNodes
+  const filteredNodeIds = new Set(filteredNodes.map(n => n.id))
+  const filteredEdges = visEdges.filter(e => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target))
+
   return (
     <div>
+      {/* Storytelling + Help */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0' }}>
+        <div style={{ flex: 1 }}><InfoPanel tab="network" /></div>
+        <HelpModal tab="network" />
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -191,12 +210,22 @@ export default function NetworkPage() {
             Who talks to whom · nodes sized by PageRank influence · colored by community cluster
           </p>
         </div>
-        <div
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
-          style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}
-        >
-          <Network size={11} />
-          PageRank · Louvain
+        <div className="flex items-center gap-2">
+          {communityFilter !== null && (
+            <span
+              className="text-xs px-2 py-1 rounded-full"
+              style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}
+            >
+              Community {communityFilter}
+            </span>
+          )}
+          <div
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+            style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}
+          >
+            <Network size={11} />
+            PageRank · Louvain
+          </div>
         </div>
       </div>
 
@@ -254,6 +283,35 @@ export default function NetworkPage() {
           </div>
 
           <div className="flex gap-5" style={{ flexWrap: 'wrap' }}>
+            {/* Community filter bar */}
+            <div className="w-full" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Filter size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+              <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>Filter by community:</span>
+              <button
+                onClick={() => { setCommunityFilter(null); setSelected(null) }}
+                style={{
+                  fontSize: '0.7rem', padding: '2px 10px', borderRadius: 20,
+                  border: communityFilter === null ? '1px solid rgba(99,102,241,0.5)' : '1px solid var(--color-border)',
+                  background: communityFilter === null ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  color: communityFilter === null ? '#818cf8' : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                }}
+              >All</button>
+              {allCommunities.map(c => (
+                <button key={c}
+                  onClick={() => { setCommunityFilter(c === communityFilter ? null : c); setSelected(null) }}
+                  style={{
+                    fontSize: '0.7rem', padding: '2px 10px', borderRadius: 20,
+                    border: communityFilter === c ? `1px solid ${communityColor(c)}` : '1px solid var(--color-border)',
+                    background: communityFilter === c ? `${communityColor(c)}20` : 'transparent',
+                    color: communityFilter === c ? communityColor(c) : 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
             {/* Graph canvas */}
             <div
               ref={containerRef}
@@ -279,7 +337,7 @@ export default function NetworkPage() {
                 onClick={() => setSelected(null)}
               >
                 {/* Edges */}
-                {layoutDone && visEdges.map((e, i) => {
+                {layoutDone && filteredEdges.map((e, i) => {
                   const a = nodeMap.get(e.source), b = nodeMap.get(e.target)
                   if (!a || !b) return null
                   const isActive = selected?.id === e.source || selected?.id === e.target
@@ -294,7 +352,7 @@ export default function NetworkPage() {
                 })}
 
                 {/* Nodes */}
-                {layoutDone && simNodes.map(n => {
+                {layoutDone && filteredNodes.map(n => {
                   const r = nodeRadius(n.pagerank)
                   const color = communityColor(n.community)
                   const isSelected = selected?.id === n.id
@@ -344,7 +402,7 @@ export default function NetworkPage() {
 
               {/* Community legend */}
               <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
-                {Array.from(new Set(simNodes.map(n => n.community))).slice(0, 8).map(c => (
+                {Array.from(new Set(filteredNodes.map(n => n.community))).slice(0, 8).map(c => (
                   <div key={c} className="flex items-center gap-1">
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: communityColor(c) }} />
                     <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Community {c}</span>

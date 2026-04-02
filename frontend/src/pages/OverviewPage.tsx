@@ -3,6 +3,8 @@ import { narrativeLensApi, type PaginatedPosts, type RedditPost } from '../servi
 import PostRow from '../components/PostRow'
 import Pagination from '../components/Pagination'
 import StatCard from '../components/StatCard'
+import InfoPanel from '../components/InfoPanel'
+import HelpModal from '../components/HelpModal'
 import { Loader2, AlertCircle } from 'lucide-react'
 import {
   AreaChart,
@@ -156,6 +158,12 @@ export default function OverviewPage({ query, subreddit }: OverviewPageProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Storytelling + Help */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ flex: 1 }}><InfoPanel tab="overview" /></div>
+        <HelpModal tab="overview" />
+      </div>
+
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard

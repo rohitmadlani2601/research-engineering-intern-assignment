@@ -43,6 +43,8 @@ class EmbeddingPoint:
     y: float
     cluster_id: int
     label: str
+    title: str = ""
+    snippet: str = ""  # first ~120 chars of post body
 
 
 @dataclass
@@ -135,12 +137,17 @@ class EmbeddingVizService:
         cluster_id_to_label: dict[int, str] = {
             c.cluster_id: c.label for c in clustering_result.clusters
         }
+        post_lookup: dict[str, RedditPost] = {p.id: p for p in posts}
 
         # ── Assemble points ───────────────────────────────────────────────
         all_points: list[EmbeddingPoint] = []
         for i, pid in enumerate(post_ids):
             cid = post_cluster.get(pid, -1)
             label = cluster_id_to_label.get(cid, "Unknown")
+            post = post_lookup.get(pid)
+            title = (post.title or "")[:120] if post else ""
+            raw_body = (post.text or "").strip() if post else ""
+            snippet = (raw_body[:120] + "…") if len(raw_body) > 120 else raw_body
             all_points.append(
                 EmbeddingPoint(
                     post_id=pid,
@@ -148,6 +155,8 @@ class EmbeddingVizService:
                     y=round(float(coords_2d[i, 1]), 5),
                     cluster_id=cid,
                     label=label,
+                    title=title,
+                    snippet=snippet,
                 )
             )
 

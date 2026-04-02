@@ -13,6 +13,8 @@ import {
   Info,
 } from 'lucide-react'
 import { narrativeLensApi, type TimeSeriesResponse } from '../services/api'
+import InfoPanel from '../components/InfoPanel'
+import HelpModal from '../components/HelpModal'
 
 // ── colour helpers ────────────────────────────────────────────────────────────
 const ACCENT = '#818cf8'
@@ -271,6 +273,12 @@ export default function TimeSeriesPage() {
 
   return (
     <div>
+      {/* Storytelling + Help */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div style={{ flex: 1 }}><InfoPanel tab="timeseries" /></div>
+        <HelpModal tab="timeseries" />
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>

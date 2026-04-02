@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { narrativeLensApi, type ClusterSummary, type ClusterPostsResponse } from '../services/api'
 import PostRow from '../components/PostRow'
+import InfoPanel from '../components/InfoPanel'
+import HelpModal from '../components/HelpModal'
 
 // ── colour palette for cluster chips (cycles) ────────────────────────────────
 const CHIP_COLORS = [
@@ -344,6 +346,12 @@ export default function TopicsPage() {
   // ── Default: clusters grid ─────────────────────────────────────────────────
   return (
     <div>
+      {/* Storytelling + Help row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ flex: 1 }}><InfoPanel tab="topics" /></div>
+        <HelpModal tab="topics" />
+      </div>
+
       {/* Page header */}
       <div className="flex items-start justify-between mb-6">
         <div>

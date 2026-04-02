@@ -139,6 +139,8 @@ export interface EmbeddingPoint {
   y: number
   cluster_id: number
   label: string
+  title?: string
+  snippet?: string
 }
 
 export interface EmbeddingMapResponse {
