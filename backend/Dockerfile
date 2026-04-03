@@ -14,11 +14,16 @@ RUN pip install --upgrade pip \
 FROM python:3.12-slim AS runtime
 
 # GCP Cloud Run convention: listen on $PORT (default 8080)
+# Point sentence-transformers / HuggingFace cache to /app/.cache which
+# appuser owns — avoids PermissionError when no home directory is created.
 ENV PORT=8080 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     ENVIRONMENT=production \
-    LOG_FORMAT=json
+    LOG_FORMAT=json \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface \
+    HF_HOME=/app/.cache/huggingface \
+    SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
 
 # Non-root user for least-privilege execution
 RUN groupadd --gid 1001 appgroup \
@@ -35,9 +40,17 @@ COPY app/ ./app/
 # Copy dataset (bind-mount in production; baked in for portability)
 COPY data/ ./data/
 
+# Pre-download the sentence-transformer model at build time (still running as
+# root here) so the model is baked into the image and no network call is
+# needed at startup — and no /home directory permission issue arises.
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
+# Hand ownership of everything under /app (including the model cache) to appuser
+RUN chown -R appuser:appgroup /app
+
 USER appuser
 
 EXPOSE $PORT
 
 # uvicorn reads $PORT at runtime; single worker per container (Cloud Run scales horizontally)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-config /dev/null"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1"]

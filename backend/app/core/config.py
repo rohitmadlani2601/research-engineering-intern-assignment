@@ -20,11 +20,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8080
 
-    # CORS
+    # CORS — explicit origins (FastAPI CORSMiddleware does not support *.subdomain globs)
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://*.run.app",
+        "https://narrativelens-frontend-49161696767.us-central1.run.app",
+        "*",
     ]
 
     # Dataset
